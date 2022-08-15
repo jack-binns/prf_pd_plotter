@@ -27,6 +27,33 @@ class PowderFigure:
         if not root:
             root = self.root
         dset = PowderDataset(root=root, tag=dset_tag)
+        self.dset_list.append(dset)
+
+    def plot_lebail(self, ticks=True, tick_labels=True, tick_label_lim=40):
+
+        plt.figure()
+        plt.xlim(self.theta_lims)
+        plt.xlabel(r"2$\theta$ / $^\circ$")
+        plt.ylabel('Intensity / arb. units')
+
+        for dset in self.dset_list:
+            print(dset.ticks_df.shape)
+            diff_offset = np.max(np.abs(dset.profile_df['diff']))
+            ticks_offset = (np.min((dset.profile_df['diff'] - diff_offset))) * 1.1
+            plt.plot(dset.profile_df['two_theta'], dset.profile_df['bg_corr_model'], 'red', label='Calculated')
+            plt.plot(dset.profile_df['two_theta'], dset.profile_df['bg_corr_obs'], 'k+', label='Observed', markersize=3)
+            plt.plot(dset.profile_df['two_theta'], dset.profile_df['diff'] - diff_offset, 'black')
+            if ticks:
+                dset.ticks_df['y_pos'] = ticks_offset
+                plt.plot(dset.ticks_df['two_theta'], dset.ticks_df['y_pos'], '|')
+            if tick_labels:
+                for k, tick in enumerate(dset.ticks_df[:tick_label_lim].iterrows()):
+                    plt.text(dset.ticks_df['two_theta'][k], ticks_offset * 1.25,
+                             f"{dset.ticks_df['h'][k]}{dset.ticks_df['k'][k]}{dset.ticks_df['l'][k]}", ha='center',
+                             va='center', rotation=90)
+        plt.yticks([])  # This gets rid of the y value numbers
+        plt.legend()
+        plt.show()
 
 
 class PowderDataset:
@@ -44,6 +71,8 @@ class PowderDataset:
         self.ticks_df = []
         self.profile_df = []
 
+        self.dataset = {}
+
         self.grok_prf()
 
     def grok_prf(self):
@@ -58,22 +87,18 @@ class PowderDataset:
                 continue
             if line != '999' and mode == 'ticks':
                 self.ticks.append(line.split())
-                print(line.split())
+                # print(line.split())
                 continue
             elif line == '999' and mode == 'ticks':
                 mode = 'profile'
                 continue
             elif line != '999.' and mode == 'profile':
                 self.profile.append(line.split())
-                print(line.split())
+                # print(line.split())
             elif line == '999.':
                 continue
         print(f'I found {len(self.ticks)} ticks')
         print(f'I found {len(self.profile)} profile data points')
-        print(self.ticks[0])
-        print(self.ticks[-1])
-        print(self.profile[0])
-        print(self.profile[-1])
         self.profile = np.array(self.profile)
 
         self.ticks_df = pd.DataFrame(self.ticks)
@@ -90,11 +115,17 @@ class PowderDataset:
         self.profile_df['bg_corr_obs'] = self.profile_df['obs'] - self.profile_df['bg']
         self.profile_df['bg_corr_model'] = self.profile_df['model'] - self.profile_df['bg']
         self.profile_df['diff'] = self.profile_df['model'] - self.profile_df['obs']
-        print(self.profile_df.dtypes)
-        print(self.ticks_df.dtypes)
+        self.dataset['ticks'] = self.ticks_df
+        self.dataset['profile'] = self.profile_df
+        self.dataset['tag'] = self.tag
+        return self.dataset
 
 
 if __name__ == '__main__':
     powfig = PowderFigure(root='.\\test_data\\', tag='test')
     print('<prf_pd_plotter> running tests...')
-    powfig.load_dataset(dset_tag='test')
+    tags = ['test']
+    for tag in tags:
+        powfig.load_dataset(dset_tag='test')
+    powfig.theta_lims = (1, 25)
+    powfig.plot_lebail()
