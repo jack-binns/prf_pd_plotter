@@ -1,12 +1,19 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pathlib
 
 # Global plotting params
 # Feel free to import matplotlib style sheet instead
 plt.rcParams['axes.linewidth'] = 0.2  # set the value globally
 plt.rcParams["font.family"] = "Arial"
 
+def cm2inch(*tupl):
+    inch = 2.54
+    if isinstance(tupl[0], tuple):
+        return tuple(i/inch for i in tupl[0])
+    else:
+        return tuple(i/inch for i in tupl)
 
 class PowderFigure:
     """
@@ -29,12 +36,12 @@ class PowderFigure:
         dset = PowderDataset(root=root, tag=dset_tag)
         self.dset_list.append(dset)
 
-    def plot_lebail(self, ticks=True, tick_labels=True, tick_label_lim=40):
+    def plot_lebail(self, ticks: bool = True, tick_labels: bool = True, tick_label_lim: int = 40, title: str = ''):
 
-        plt.figure()
+        plt.figure(figsize=cm2inch(8.6, 5.342))         # Sized for double columned articles as cm2inch(8.6,5.342)
         plt.xlim(self.theta_lims)
-        plt.xlabel(r"2$\theta$ / $^\circ$")
         plt.ylabel('Intensity / arb. units')
+        plt.xlabel(r"2$\theta$ / $^\circ$")
 
         for dset in self.dset_list:
             print(dset.ticks_df.shape)
@@ -52,8 +59,13 @@ class PowderFigure:
                              f"{dset.ticks_df['h'][k]}{dset.ticks_df['k'][k]}{dset.ticks_df['l'][k]}", ha='center',
                              va='center', rotation=90)
         plt.yticks([])  # This gets rid of the y value numbers
+        #plt.title(title)
         plt.legend()
-        plt.show()
+        plt.tight_layout(pad=0.5)
+        #plt.show()
+        file_name = pathlib.Path(f'{self.root}\\{title}_LeBail.png')
+        print(f'Saving figure to {file_name}')
+        plt.savefig(file_name, format='png',dpi=400)
 
 
 class PowderDataset:
@@ -76,7 +88,7 @@ class PowderDataset:
         self.grok_prf()
 
     def grok_prf(self):
-        with open(f'{self.root}\\{self.tag}.prf', 'r') as f:
+        with open(list(pathlib.Path(f'{self.root}').glob('*.prf'))[0], 'r') as f:
             lines = f.readlines()
         lines = [line.strip() for line in lines]
         # print(lines)
@@ -122,10 +134,15 @@ class PowderDataset:
 
 
 if __name__ == '__main__':
-    powfig = PowderFigure(root='.\\test_data\\', tag='test')
+    tags = ['AMAMS', 'AMAN', 'BAA', 'EtAH', 'EtAMS', 'EtAN_S_heating', 'TEtAA'] #['BAMS']
+    main_dir = r'C:\Users\Michael\RMIT University\Jack Binns - pil_janarefs'
+
     print('<prf_pd_plotter> running tests...')
-    tags = ['test']
     for tag in tags:
-        powfig.load_dataset(dset_tag='test')
-    powfig.theta_lims = (1, 25)
-    powfig.plot_lebail()
+        print(f'Beginning {tag} run')
+        root = pathlib.Path(f'{main_dir}\{tag}')
+        powfig = PowderFigure(root=root)
+        powfig.load_dataset(dset_tag=tag)
+        powfig.theta_lims = (1, 25)
+        powfig.plot_lebail(tick_labels=False, title=tag)
+        print()
